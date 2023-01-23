@@ -1,0 +1,11 @@
+# Files
+*.md
+.env
+.DS_Store
+.coverage
+
+# Directories
+.venv/
+.vscode/
+__pycache__/
+htmlcov/
