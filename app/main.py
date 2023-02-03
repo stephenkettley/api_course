@@ -1,5 +1,6 @@
 import time
 from random import randrange
+from typing import List, Optional
 
 import models
 import psycopg2
@@ -55,15 +56,17 @@ def first_message():
     return {"message": "welcome to my api"}
 
 
-@app.get("/posts")
+@app.get("/posts", response_model=list[schemas.ResponsePost])
 def get_posts(db: Session = Depends(get_db)):
     # cursor.execute("""SELECT * FROM posts""")
     # posts = cursor.fetchall()
     posts = db.query(models.Post).all()
-    return {"data": posts}
+    return posts
 
 
-@app.post("/posts", status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/posts", status_code=status.HTTP_201_CREATED, response_model=schemas.ResponsePost
+)
 def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db)):
     # cursor.execute(
     #     """INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING * """,
@@ -75,10 +78,10 @@ def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db)):
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
-    return {"data": new_post}
+    return new_post
 
 
-@app.get("/posts/{id}")
+@app.get("/posts/{id}", response_model=schemas.ResponsePost)
 def get_post(id: int, db: Session = Depends(get_db)):
 
     # cursor.execute("""SELECT * FROM posts WHERE id = %s""", (str(id),))
@@ -89,7 +92,7 @@ def get_post(id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"post with id {id} was not found",
         )
-    return {"post_detail": post}
+    return post
 
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -108,8 +111,8 @@ def delete_post(id: int, db: Session = Depends(get_db)):
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@app.put("/posts/{id}")
-def update_post(id: int, post: schemas.PostCreatePost, db: Session = Depends(get_db)):
+@app.put("/posts/{id}", response_model=schemas.ResponsePost)
+def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)):
     # cursor.execute(
     #     """UPDATE posts SET title= %s, content=%s, published=%s WHERE id = %s RETURNING *""",
     #     (post.title, post.content, post.published, str(id)),
@@ -126,4 +129,4 @@ def update_post(id: int, post: schemas.PostCreatePost, db: Session = Depends(get
         )
     post_query.update(post.dict(), synchronize_session=False)
     db.commit()
-    return {"new_data": post_query.first()}
+    return post_query.first()
