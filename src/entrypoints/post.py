@@ -1,62 +1,15 @@
-import time
-from random import randrange
-from typing import List, Optional
+from typing import List
 
-import models
-import psycopg2
-import schemas
-from database import engine, get_db
-from fastapi import Depends, FastAPI, HTTPException, Response, status
-from psycopg2.extras import RealDictCursor
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
-models.Base.metadata.create_all(bind=engine)
+from .schemas import models, schemas
+from .schemas.database import get_db
 
-app = FastAPI()
-
-
-while True:
-    try:
-        conn = psycopg2.connect(
-            host="localhost",
-            dbname="Social Media FastAPI Course",
-            user="postgres",
-            password="bornfreebeing",
-            cursor_factory=RealDictCursor,
-        )
-        cursor = conn.cursor()
-        print("database connection successful")
-        break
-    except Exception as error:
-        print("database connection failed")
-        print("error: ", error)
-        time.sleep(2)
-
-my_posts = [
-    {"title": "title of post1", "content": "content of post1", "id": 1},
-    {"title": "favourite foods", "content": "I like pizza", "id": 2},
-]
+router = APIRouter()
 
 
-def find_post(id):
-    for p in my_posts:
-        if p["id"] == id:
-            return p
-
-
-def find_index_post(id):
-    for i, p in enumerate(my_posts):
-        if p["id"] == id:
-            return i
-
-
-@app.get("/")
-def first_message():
-    return {"message": "welcome to my api"}
-
-
-@app.get("/posts", response_model=list[schemas.ResponsePost])
+@router.get("/posts", response_model=list[schemas.ResponsePost])
 def get_posts(db: Session = Depends(get_db)):
     # cursor.execute("""SELECT * FROM posts""")
     # posts = cursor.fetchall()
@@ -64,7 +17,7 @@ def get_posts(db: Session = Depends(get_db)):
     return posts
 
 
-@app.post(
+@router.post(
     "/posts", status_code=status.HTTP_201_CREATED, response_model=schemas.ResponsePost
 )
 def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db)):
@@ -81,7 +34,7 @@ def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db)):
     return new_post
 
 
-@app.get("/posts/{id}", response_model=schemas.ResponsePost)
+@router.get("/posts/{id}", response_model=schemas.ResponsePost)
 def get_post(id: int, db: Session = Depends(get_db)):
 
     # cursor.execute("""SELECT * FROM posts WHERE id = %s""", (str(id),))
@@ -95,7 +48,7 @@ def get_post(id: int, db: Session = Depends(get_db)):
     return post
 
 
-@app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int, db: Session = Depends(get_db)):
     # cursor.execute("""DELETE FROM posts WHERE id = %s RETURNING * """, (str(id),))
     # deleted_post = cursor.fetchone()
@@ -111,7 +64,7 @@ def delete_post(id: int, db: Session = Depends(get_db)):
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@app.put("/posts/{id}", response_model=schemas.ResponsePost)
+@router.put("/posts/{id}", response_model=schemas.ResponsePost)
 def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)):
     # cursor.execute(
     #     """UPDATE posts SET title= %s, content=%s, published=%s WHERE id = %s RETURNING *""",
@@ -130,13 +83,3 @@ def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)
     post_query.update(post.dict(), synchronize_session=False)
     db.commit()
     return post_query.first()
-
-
-@app.post("/users", status_code=status.HTTP_201_CREATED, response_model=schemas.UserOut)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    new_user = models.User(**user.dict())
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-
-    return new_user
